@@ -1,0 +1,28 @@
+{
+  "name": "claude-agent-sdk-starter",
+  "version": "0.1.0",
+  "description": "A minimal, working TypeScript starter kit for the Anthropic Claude Agent SDK with custom MCP tools.",
+  "main": "dist/agent.js",
+  "scripts": {
+    "dev": "tsx src/agent.ts",
+    "build": "tsc",
+    "start": "node dist/agent.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["anthropic", "claude", "agent-sdk", "mcp", "typescript", "starter", "ai-agent"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "latest",
+    "dotenv": "^16.4.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.15.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
