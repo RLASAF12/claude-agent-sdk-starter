@@ -27,39 +27,45 @@ npm run dev                  # watch Claude use both tools live
 The Claude Agent SDK exposes a `query()` function that returns an `AsyncIterable<Message>`. Claude reads your prompt, decides which tools to call, executes them in-process, and streams every step back to you:
 
 ```typescript
-for await (const message of query({ prompt, tools })) {
-  // message.type: "assistant" | "tool" | "result"
+for await (const message of query({
+  prompt,
+  options: { mcpServers: { "starter-tools": starterTools }, allowedTools },
+})) {
+  // message.type: "assistant" | "result" | ...
   // handle each step as it arrives
 }
 ```
 
-**Key insight:** Custom tools are registered as **in-process MCP servers**. No HTTP server, no separate process — the SDK hosts the MCP server inside your Node.js process using Zod schemas for type-safe inputs.
+**Key insight:** Custom tools are registered as **in-process MCP servers**. You bundle your tools with `createSdkMcpServer()` and pass it via `options.mcpServers` — no HTTP server, no separate process. The SDK hosts the MCP server inside your Node.js process using Zod schemas for type-safe inputs. Tool names are namespaced `mcp__<server>__<tool>`; list them in `allowedTools` to pre-approve them.
 
 ## 🛠️ Included Tools
 
 | Tool | Input | Output | Use case |
 |------|-------|--------|----------|
-| `get_word_count` | `text: string` | `{words, characters, sentences}` | Text analysis |
-| `get_timestamp` | `timezone?: string` | `{iso, human, timezone}` | Time-aware agents |
+| `get_word_count` | `text: string` | words / characters / sentences | Text analysis |
+| `get_timestamp` | `timezone?: string` | ISO 8601 + human-readable local time | Time-aware agents |
 
 ## ➕ Add Your Own Tool
 
 Three steps to add a tool:
 
-1. Define it in `src/tools.ts` using the `tool()` helper and a Zod schema
-2. Add it to the exported `tools` array
-3. Done — Claude will automatically discover and use it
+1. Define it in `src/tools.ts` with the `tool(name, description, inputShape, handler)` helper
+2. Add it to the `tools` array passed to `createSdkMcpServer()` (and its name to `starterToolNames`)
+3. Done — Claude will discover and use it
 
 ```typescript
 // src/tools.ts
-const my_tool = tool({
-  name: "my_tool",
-  description: "What this tool does — be specific, Claude reads this",
-  input_schema: z.object({ value: z.string().describe("Input description") }),
-  async handler({ value }) {
-    return { result: value.toUpperCase() };
-  },
-});
+// Signature: tool(name, description, inputShape, handler)
+// inputShape is a raw Zod shape — NOT z.object(...).
+// The handler returns an MCP CallToolResult: { content: [{ type, text }] }.
+const myTool = tool(
+  "my_tool",
+  "What this tool does — be specific, Claude reads this",
+  { value: z.string().describe("Input description") },
+  async ({ value }) => ({
+    content: [{ type: "text", text: value.toUpperCase() }],
+  }),
+);
 ```
 
 ## 🏗️ Architecture
@@ -69,7 +75,7 @@ const my_tool = tool({
    │
    ▼
 agent.ts
-   │  query({ prompt, tools })
+   │  query({ prompt, options: { mcpServers } })
    ▼
 Claude API (claude-sonnet-4-6)
    │
